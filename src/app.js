@@ -6,6 +6,7 @@ const healthRoutes = require("./routes/health_routes");
 const aiRoutes = require("./routes/ai_routes");
 const errorMiddleware = require("./middleware/error_middleware");
 const assessmentRoutes = require("./routes/assessment_routes");
+const docsRoutes = require("./routes/docs_routes");
 
 function createApp() {
   const app = express();
@@ -15,6 +16,7 @@ function createApp() {
   app.use(express.json({ limit: "1mb" }));
 
   app.use("/", healthRoutes);
+  app.use("/", docsRoutes);
   app.use("/api/ai", aiRoutes);
   app.use("/api", assessmentRoutes);
 

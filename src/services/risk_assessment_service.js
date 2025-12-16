@@ -62,7 +62,7 @@ Base score:
 ${JSON.stringify(baseResult)}
 `.trim();
 
-  const raw = await geminiService.generateText(prompt, { timeoutMs: 12000 });
+  const raw = await geminiService.generateText(prompt, { timeoutMs: 25000 });
 
   const obj = extractJson(raw);
 
@@ -93,11 +93,28 @@ ${JSON.stringify(baseResult)}
 
 async function assessRisk(input) {
   const base = calculateBaseScore(input);
-  const ai = await getAiAdjustment(input, base);
+
+  let ai;
+  try {
+    ai = await getAiAdjustment(input, base);
+  } catch (e) {
+    // ✅ Fallback khi Gemini timeout / 503 overloaded / 429...
+    ai = {
+      aiAdjustment: 0,
+      reasoning: ["AI is temporarily unavailable; adjustment set to 0."],
+      riskSignals: [],
+      positiveSignals: [],
+    };
+
+    // (Optional) log để debug
+    console.warn("[AI] fallback (aiAdjustment=0):", e?.message || e);
+  }
+
   const fpoBoost = computeFpoBoost(
     Boolean(input.isFpoMember),
     input.fpoTrackRecord
   );
+
   const rawFinal = base.total + ai.aiAdjustment + fpoBoost;
   const finalScore = clamp(rawFinal, 0, 100);
 

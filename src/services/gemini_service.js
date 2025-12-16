@@ -4,6 +4,15 @@ const DEFAULT_MODEL = "gemini-2.5-flash";
 
 let cachedModels = new Map(); // key: modelName -> model instance
 
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function isRetryableGeminiError(err) {
+  const status = err?.status || err?.statusCode;
+  return status === 429 || status === 503;
+}
+
 function getModel(modelName = DEFAULT_MODEL) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -20,21 +29,41 @@ function getModel(modelName = DEFAULT_MODEL) {
   return model;
 }
 
-async function generateText(prompt, { timeoutMs = 12000, modelName } = {}) {
+async function generateText(prompt, { timeoutMs = 20000, modelName } = {}) {
   const model = getModel(modelName);
 
-  const result = await Promise.race([
-    model.generateContent(String(prompt)),
-    new Promise((_, reject) =>
-      setTimeout(() => {
-        const err = new Error("Gemini timeout");
-        err.statusCode = 504;
-        reject(err);
-      }, timeoutMs)
-    ),
-  ]);
+  const maxAttempts = 4; // 1 + 3 lần retry
+  let lastErr;
 
-  return result.response.text();
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await Promise.race([
+        model.generateContent(String(prompt)),
+        new Promise((_, reject) =>
+          setTimeout(() => {
+            const e = new Error("Gemini timeout");
+            e.statusCode = 504;
+            reject(e);
+          }, timeoutMs)
+        ),
+      ]);
+
+      return result.response.text();
+    } catch (err) {
+      lastErr = err;
+
+      if (!isRetryableGeminiError(err) || attempt === maxAttempts) {
+        throw err;
+      }
+
+      // exponential backoff + jitter
+      const base = 600 * Math.pow(2, attempt - 1); // 600, 1200, 2400...
+      const jitter = Math.floor(Math.random() * 250);
+      await sleep(base + jitter);
+    }
+  }
+
+  throw lastErr;
 }
 
 module.exports = { generateText, DEFAULT_MODEL };
