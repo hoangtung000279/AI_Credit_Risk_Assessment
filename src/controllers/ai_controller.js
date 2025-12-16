@@ -1,4 +1,4 @@
-const geminiService = require("../services/gemini.service");
+const geminiService = require("../services/gemini_service");
 
 async function ping(req, res) {
   const input = String(req.body?.text ?? "Say OK in one short sentence.");

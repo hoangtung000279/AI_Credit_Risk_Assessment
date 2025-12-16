@@ -2,9 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 
-const healthRoutes = require("./routes/health.routes");
-const aiRoutes = require("./routes/ai.routes");
-const errorMiddleware = require("./middleware/error.middleware");
+const healthRoutes = require("./routes/health_routes");
+const aiRoutes = require("./routes/ai_routes");
+const errorMiddleware = require("./middleware/error_middleware");
 
 function createApp() {
   const app = express();
@@ -17,7 +17,6 @@ function createApp() {
   app.use("/api/ai", aiRoutes);
 
   app.use(errorMiddleware);
-
   return app;
 }
 
