@@ -3,6 +3,10 @@ const express = require("express");
 const router = express.Router();
 
 router.get("/docs", (_req, res) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self';"
+  );
   res.type("html").send(`
 <!doctype html>
 <html>

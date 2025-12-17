@@ -98,16 +98,17 @@ async function assessRisk(input) {
   try {
     ai = await getAiAdjustment(input, base);
   } catch (e) {
-    // ✅ Fallback khi Gemini timeout / 503 overloaded / 429...
+    const status = e?.statusCode || e?.status;
+    const retryable = status === 429 || status === 503 || status === 504;
+
+    if (!retryable) throw e; // lỗi config/code -> fail để bạn biết
+
     ai = {
       aiAdjustment: 0,
       reasoning: ["AI is temporarily unavailable; adjustment set to 0."],
       riskSignals: [],
       positiveSignals: [],
     };
-
-    // (Optional) log để debug
-    console.warn("[AI] fallback (aiAdjustment=0):", e?.message || e);
   }
 
   const fpoBoost = computeFpoBoost(
