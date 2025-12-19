@@ -1,6 +1,9 @@
 const { assessRisk } = require("../services/risk_assessment_service");
 const { buildLoanTerms } = require("../services/loan_terms_service");
 const { calculateBaseScore } = require("../services/scoring_service");
+const {
+  saveAssessment,
+} = require("../services/assessment_persistence_service");
 
 function normalizeInput(body) {
   return {
@@ -148,11 +151,23 @@ async function assess(req, res) {
   }
 
   const loanTerms = buildLoanTerms(input, riskResult);
-
   const latencyMs = Date.now() - startedAt;
+
+  let assessmentId = null;
+  try {
+    assessmentId = await saveAssessment({
+      input,
+      result: riskResult,
+      loanTerms,
+      meta: { latencyMs },
+    });
+  } catch (e) {
+    console.error("[DB] saveAssessment failed:", e?.message || e);
+  }
 
   res.status(200).json({
     ok: true,
+    assessmentId,
     ...riskResult,
     loanTerms,
     explainable: {
