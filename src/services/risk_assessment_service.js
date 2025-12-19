@@ -95,6 +95,8 @@ async function assessRisk(input) {
   const base = calculateBaseScore(input);
 
   let ai;
+  let aiFallback = false;
+
   try {
     ai = await getAiAdjustment(input, base);
   } catch (e) {
@@ -103,12 +105,14 @@ async function assessRisk(input) {
 
     if (!retryable) throw e; // lỗi config/code -> fail để bạn biết
 
+    aiFallback = true;
     ai = {
       aiAdjustment: 0,
       reasoning: ["AI is temporarily unavailable; adjustment set to 0."],
       riskSignals: [],
       positiveSignals: [],
     };
+    console.warn("[AI] fallback (aiAdjustment=0):", e?.message || e);
   }
 
   const fpoBoost = computeFpoBoost(
@@ -139,6 +143,9 @@ async function assessRisk(input) {
     rawFinalScore: rawFinal,
     finalScore,
     riskCategory,
+    meta: {
+      aiFallback,
+    },
   };
 }
 
