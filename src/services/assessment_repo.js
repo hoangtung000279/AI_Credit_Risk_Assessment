@@ -154,7 +154,4 @@ function cursorForExport() {
     .sort({ createdAt: -1 });
 }
 
-module.exports = {
-  aggregateStats,
-  cursorForExport,
-};
+module.exports = require("../repositories/assessment_repo");
