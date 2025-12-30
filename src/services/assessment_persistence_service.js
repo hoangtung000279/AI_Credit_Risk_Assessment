@@ -1,8 +1,11 @@
 const { insertAssessment } = require("../repositories/assessment_repo");
+const { buildAnalytics } = require("./analytics_builder");
 
 async function saveAssessment({ input, result, loanTerms, meta }) {
+  const analytics = buildAnalytics({ input, result, meta });
+
   const doc = {
-    farmerData: input, // raw input sau normalize
+    farmerData: input, // raw input sau normalize (MVP ok)
     scores: {
       baseScore: result.baseScore,
       aiAdjustment: result.aiAdjustment,
@@ -17,14 +20,21 @@ async function saveAssessment({ input, result, loanTerms, meta }) {
       aiSignals: result.aiSignals,
     },
     loanTerms,
-    location: input.location ?? null,
-    createdAt: new Date(),
+
+    // ✅ đồng bộ với analytics để query dễ
+    location: analytics.location,
+    createdAt: analytics.createdAt,
+
     meta: {
       latencyMs: meta?.latencyMs ?? null,
       aiFallback: Boolean(result?.meta?.aiFallback),
       timeoutFallback: Boolean(result?.meta?.timeoutFallback),
     },
-    version: 1,
+
+    // ✅ BE-201: log/derived fields cho analytics query nhanh
+    analytics,
+
+    version: 2,
   };
 
   const id = await insertAssessment(doc);

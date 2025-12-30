@@ -24,9 +24,30 @@ async function connectMongo() {
   await client.connect();
   db = client.db(mongoDbName);
 
+  async function ensureIndexes(db) {
+    const c = db.collection("assessments");
+    await c.createIndex({ createdAt: -1 });
+    await c.createIndex({ "analytics.createdAt": -1 });
+    await c.createIndex({ "analytics.location": 1, "analytics.createdAt": -1 });
+    await c.createIndex({
+      "analytics.isFpoMember": 1,
+      "analytics.createdAt": -1,
+    });
+    await c.createIndex({
+      "analytics.riskCategory": 1,
+      "analytics.createdAt": -1,
+    });
+    await c.createIndex({
+      "analytics.aiAdjustment": 1,
+      "analytics.createdAt": -1,
+    });
+  }
+
   // ping để chắc chắn connect ok
   await db.command({ ping: 1 });
   console.log(`[MongoDB] Connected to DB: ${mongoDbName}`);
+
+  await ensureIndexes(db);
 
   return db;
 }
