@@ -390,10 +390,40 @@ async function aggregateDashboard({ from, to } = {}) {
   };
 }
 
+async function aggregateTrainingPatterns({ minCount = 5, limit = 50 } = {}) {
+  const pipeline = [
+    {
+      $project: {
+        location: { $ifNull: ["$location", "$farmerData.location", "Unknown"] },
+        crop: {
+          $ifNull: [{ $arrayElemAt: ["$farmerData.crops", 0] }, "Unknown"],
+        },
+        finalScore: {
+          $ifNull: ["$scores.finalScore", "$result.finalScore", "$finalScore"],
+        },
+        createdAt: 1,
+      },
+    },
+    {
+      $group: {
+        _id: { location: "$location", crop: "$crop" },
+        count: { $sum: 1 },
+        avgFinalScore: { $avg: "$finalScore" },
+      },
+    },
+    { $match: { count: { $gte: minCount } } },
+    { $sort: { avgFinalScore: -1, count: -1 } },
+    { $limit: limit },
+  ];
+
+  return col().aggregate(pipeline, { allowDiskUse: true }).toArray();
+}
+
 module.exports = {
   insertAssessment,
   aggregateStats,
   cursorForExport,
   aggregateDashboard,
-  buildMatch, // (optional) nếu service khác cần
+  buildMatch,
+  aggregateTrainingPatterns,
 };
