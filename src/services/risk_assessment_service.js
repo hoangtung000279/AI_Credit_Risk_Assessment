@@ -2,6 +2,8 @@ const { calculateBaseScore } = require("./scoring_service");
 const geminiService = require("./gemini_service");
 const aiLearning = require("./ai_learning_service");
 
+const DEFAULT_MODEL = "gemini-2.5-flash";
+
 function clamp(num, min, max) {
   return Math.min(max, Math.max(min, num));
 }
@@ -36,6 +38,13 @@ function extractJson(text) {
   } catch {
     return null;
   }
+}
+
+function pickFirstCrop(input) {
+  const crops = input?.crops ?? input?.farmerData?.crops;
+  if (Array.isArray(crops) && crops.length > 0) return String(crops[0]);
+  if (typeof crops === "string" && crops.trim()) return String(crops);
+  return null;
 }
 
 /**
@@ -77,8 +86,28 @@ function buildAiContext(input, baseResult) {
 
     // base score summary
     baseScore: baseResult.total,
-    baseBreakdown: baseResult.breakdown, // vẫn giữ để AI hiểu “yếu ở đâu”, nhưng nhẹ hơn full baseResult
+    baseBreakdown: baseResult.breakdown,
   };
+}
+
+function normalizeLearningResult(learned, baseAdj) {
+  // aiLearning.applyLearningToAdjustment có thể trả:
+  // - number (legacy)
+  // - { adjusted, bias, pattern }
+  if (typeof learned === "number") {
+    return { adjusted: learned, bias: 0, pattern: null };
+  }
+
+  if (learned && typeof learned === "object") {
+    return {
+      adjusted:
+        typeof learned.adjusted === "number" ? learned.adjusted : baseAdj,
+      bias: typeof learned.bias === "number" ? learned.bias : 0,
+      pattern: learned.pattern ?? null,
+    };
+  }
+
+  return { adjusted: baseAdj, bias: 0, pattern: null };
 }
 
 /**
@@ -92,7 +121,6 @@ async function getAiAdjustment(input, baseResult, state) {
 
   const ctx = buildAiContext(input, baseResult);
 
-  // ✅ Prompt ngắn + rõ schema + range động
   const prompt = `
 Return JSON ONLY:
 {
@@ -116,8 +144,6 @@ Context:
 ${JSON.stringify(ctx)}
 `.trim();
 
-  // ✅ Timeout thấp hơn hard-timeout của controller
-  // Nếu gemini_service support maxAttempts => giảm retry để nhanh
   const raw = await geminiService.generateText(prompt, {
     timeoutMs: 5000,
     maxAttempts: 2,
@@ -133,6 +159,7 @@ ${JSON.stringify(ctx)}
       riskSignals: [],
       positiveSignals: [],
       meta: {
+        model: DEFAULT_MODEL,
         modelVersion,
         trainedOnSnapshot,
         adjustmentRange: { min: minAdj, max: maxAdj },
@@ -149,19 +176,26 @@ ${JSON.stringify(ctx)}
   let learningMeta = { applied: false, bias: 0, pattern: null };
 
   try {
-    const learned = aiLearning.applyLearningToAdjustment({
-      input,
+    const learnedRaw = aiLearning.applyLearningToAdjustment({
+      input: {
+        ...input,
+        // đảm bảo training key crop có dữ liệu, dù client không gửi crops
+        crops:
+          input?.crops ?? (pickFirstCrop(input) ? [pickFirstCrop(input)] : []),
+      },
       aiAdjustment: baseAdj,
       state,
     });
 
-    const bias = Number(learned?.bias ?? 0);
-    finalAdj = Number(learned?.adjusted ?? baseAdj);
+    const learned = normalizeLearningResult(learnedRaw, baseAdj);
+
+    const bias = Number(learned.bias ?? 0);
+    finalAdj = Number(learned.adjusted ?? baseAdj);
 
     learningMeta = {
       applied: bias !== 0,
       bias,
-      pattern: learned?.pattern
+      pattern: learned.pattern
         ? {
             location: learned.pattern.location,
             crop: learned.pattern.crop,
@@ -189,7 +223,7 @@ ${JSON.stringify(ctx)}
   }
 
   return {
-    aiAdjustment: clamp(finalAdj, minAdj, maxAdj),
+    aiAdjustment: clamp(Math.round(finalAdj), minAdj, maxAdj),
     reasoning,
     riskSignals: Array.isArray(obj.riskSignals)
       ? obj.riskSignals.map(String).slice(0, 5)
@@ -198,6 +232,7 @@ ${JSON.stringify(ctx)}
       ? obj.positiveSignals.map(String).slice(0, 5)
       : [],
     meta: {
+      model: DEFAULT_MODEL,
       modelVersion,
       trainedOnSnapshot,
       adjustmentRange: { min: minAdj, max: maxAdj },
@@ -209,19 +244,25 @@ ${JSON.stringify(ctx)}
 async function assessRisk(input) {
   const base = calculateBaseScore(input);
 
-  // ✅ BE-204: load state 1 lần / request
   const state = await aiLearning.getStateCached().catch(() => null);
 
   let ai;
   let aiFallback = false;
+  let timeoutFallback = false;
 
   try {
     ai = await getAiAdjustment(input, base, state);
   } catch (e) {
     const status = e?.statusCode || e?.status;
-    const retryable = status === 429 || status === 503 || status === 504;
+    timeoutFallback =
+      e?.code === "ETIMEDOUT" ||
+      e?.name === "AbortError" ||
+      /timeout/i.test(String(e?.message || ""));
 
-    if (!retryable) throw e; // config/code lỗi thì fail để biết
+    const retryable =
+      timeoutFallback || status === 429 || status === 503 || status === 504;
+
+    if (!retryable) throw e;
 
     aiFallback = true;
 
@@ -234,6 +275,7 @@ async function assessRisk(input) {
       riskSignals: [],
       positiveSignals: [],
       meta: {
+        model: DEFAULT_MODEL,
         modelVersion: Number(state?.modelVersion ?? 1),
         trainedOnSnapshot: Number(state?.trainedOn ?? 0),
         adjustmentRange: { min: minAdj, max: maxAdj },
@@ -274,7 +316,7 @@ async function assessRisk(input) {
     riskCategory,
     meta: {
       aiFallback,
-      // ✅ BE-203: expose model info for dashboard + logging
+      timeoutFallback, // ✅ thêm để persistence/log dùng được, không phá BE cũ
       aiModel: ai?.meta ?? null,
     },
   };

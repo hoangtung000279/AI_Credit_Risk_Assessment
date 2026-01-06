@@ -1,2 +1,4 @@
 node_modules
 .env
+src/keys/ai-credit-risk-backup.json
+*.json

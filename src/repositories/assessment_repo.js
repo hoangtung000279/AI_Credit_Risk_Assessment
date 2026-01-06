@@ -390,31 +390,95 @@ async function aggregateDashboard({ from, to } = {}) {
   };
 }
 
-async function aggregateTrainingPatterns({ minCount = 5, limit = 50 } = {}) {
-  const pipeline = [
+async function aggregateTrainingPatterns({
+  from,
+  to,
+  minCount = 5,
+  limit = 50,
+} = {}) {
+  const match = buildMatch({ from, to });
+
+  const pipeline = [];
+
+  if (match && Object.keys(match).length) pipeline.push({ $match: match });
+
+  pipeline.push(
     {
       $project: {
-        location: { $ifNull: ["$location", "$farmerData.location", "Unknown"] },
-        crop: {
-          $ifNull: [{ $arrayElemAt: ["$farmerData.crops", 0] }, "Unknown"],
+        a: {
+          createdAt: { $ifNull: ["$analytics.createdAt", "$createdAt"] },
+
+          // ưu tiên analytics.* (đã normalize), fallback schema cũ
+          locationRaw: {
+            $ifNull: [
+              "$analytics.locationKey",
+              "$analytics.location",
+              "$location",
+              "$farmerData.location",
+              "Unknown",
+            ],
+          },
+          cropRaw: {
+            $ifNull: [
+              "$analytics.cropKey",
+              "$analytics.crop",
+              { $arrayElemAt: ["$farmerData.crops", 0] },
+              "Unknown",
+            ],
+          },
+
+          finalScore: {
+            $ifNull: [
+              "$analytics.finalScore",
+              "$scores.finalScore",
+              "$result.finalScore",
+              "$finalScore",
+            ],
+          },
+          aiAdjustment: {
+            $ifNull: [
+              "$analytics.aiAdjustment",
+              "$scores.aiAdjustment",
+              "$result.aiAdjustment",
+              0,
+            ],
+          },
         },
-        finalScore: {
-          $ifNull: ["$scores.finalScore", "$result.finalScore", "$finalScore"],
-        },
-        createdAt: 1,
       },
     },
+    // normalize key để group ổn định (lowercase + trim)
+    {
+      $addFields: {
+        locationKey: {
+          $toLower: { $trim: { input: { $toString: "$a.locationRaw" } } },
+        },
+        cropKey: {
+          $toLower: { $trim: { input: { $toString: "$a.cropRaw" } } },
+        },
+      },
+    },
+    // lọc rác
+    {
+      $match: {
+        locationKey: { $nin: [null, "", "unknown"] },
+        cropKey: { $nin: [null, "", "unknown"] },
+        "a.finalScore": { $ne: null },
+      },
+    },
+    // group patterns
     {
       $group: {
-        _id: { location: "$location", crop: "$crop" },
+        _id: { location: "$locationKey", crop: "$cropKey" },
         count: { $sum: 1 },
-        avgFinalScore: { $avg: "$finalScore" },
+        avgFinalScore: { $avg: "$a.finalScore" },
+        avgAiAdjustment: { $avg: "$a.aiAdjustment" },
+        lastSeen: { $max: "$a.createdAt" },
       },
     },
-    { $match: { count: { $gte: minCount } } },
+    { $match: { count: { $gte: Number(minCount) } } },
     { $sort: { avgFinalScore: -1, count: -1 } },
-    { $limit: limit },
-  ];
+    { $limit: Number(limit) }
+  );
 
   return col().aggregate(pipeline, { allowDiskUse: true }).toArray();
 }

@@ -3,6 +3,24 @@ function toNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function asString(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s.length ? s : null;
+}
+
+function normalizeKey(v) {
+  const s = asString(v);
+  return s ? s.toLowerCase() : null;
+}
+
+function firstCrop(input) {
+  const crops = input?.crops;
+  if (Array.isArray(crops) && crops.length > 0) return asString(crops[0]);
+  if (typeof crops === "string") return asString(crops);
+  return null;
+}
+
 function dtiBucket(ratio) {
   if (ratio == null) return "unknown";
   const pct = ratio * 100;
@@ -33,10 +51,17 @@ function buildAnalytics({ input, result, meta }) {
       : null;
 
   const cropCount = Array.isArray(input.crops) ? input.crops.length : 0;
+  const crop = normalizeKey(firstCrop(input.crops));
+  const location = asString(input.location ?? null);
+  const locationKey = normalizeKey(location);
 
   return {
     createdAt: new Date(),
-    location: input.location ?? null,
+    location,
+    crop,
+    locationKey,
+    cropKey: crop,
+    // location: input.location ?? null,
     isFpoMember: Boolean(input.isFpoMember),
     fpoTrackRecord: input.fpoTrackRecord ?? null,
 

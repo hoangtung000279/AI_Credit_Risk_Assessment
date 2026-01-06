@@ -1,6 +1,7 @@
 const { insertAssessment } = require("../repositories/assessment_repo");
 const { buildAnalytics } = require("./analytics_builder");
-const { bumpTrainedOn, getState } = require("../repositories/ai_model_repo");
+const { getState } = require("../repositories/ai_model_repo");
+const aiLearning = require("./ai_learning_service");
 const { getDb } = require("../config/mongo_client");
 
 function toDateOrNow(v) {
@@ -9,9 +10,17 @@ function toDateOrNow(v) {
   return Number.isNaN(d.getTime()) ? new Date() : d;
 }
 
-function buildAiModelSnapshot(state) {
+function pickFirstCrop(input) {
+  const crops = input?.crops;
+  if (Array.isArray(crops) && crops.length > 0) return String(crops[0]);
+  if (typeof crops === "string" && crops.trim()) return String(crops);
+  return null;
+}
+
+function buildAiModelSnapshot(state, result) {
   return {
-    model: "gemini-2.5-flash",
+    // giữ backward-compatible: vẫn ưu tiên model cố định nếu bạn muốn
+    model: result?.meta?.aiModel?.model ?? "gemini-2.5-flash",
     modelVersion: state?.modelVersion ?? 1,
     trainedOnSnapshot: state?.trainedOn ?? 0,
     adjustmentRange: {
@@ -34,6 +43,9 @@ async function saveAssessment({ input, result, loanTerms, meta }) {
     input?.farmerData?.location ??
     null;
 
+  // ✅ add crop for BE-301 training patterns (safe-add field, không ảnh hưởng BE cũ)
+  analytics.crop = analytics.crop ?? pickFirstCrop(input);
+
   // 2) insert assessment trước (đảm bảo “save every assessment”)
   const doc = {
     farmerData: input,
@@ -48,7 +60,7 @@ async function saveAssessment({ input, result, loanTerms, meta }) {
     },
     reasoning: {
       aiReasoning: result.aiReasoning,
-      aiSignals: result.aiSignals,
+      aiSignalsistr: result.aiSignals,
     },
     loanTerms,
     location: analytics.location,
@@ -64,14 +76,20 @@ async function saveAssessment({ input, result, loanTerms, meta }) {
 
   const insertedId = await insertAssessment(doc);
 
-  // 3) bump trainedOn (BE-203)
-  let stateAfter = await bumpTrainedOn();
+  // 3) bump trainedOn (BE-203) - ✅ thông qua aiLearning để cache đồng bộ
+  let stateAfter = null;
+  try {
+    stateAfter = await aiLearning.onAssessmentSaved();
+  } catch (e) {
+    console.warn("[MODEL] onAssessmentSaved failed:", e?.message || e);
+  }
+
   if (!stateAfter) {
-    // fallback nếu bump trả null vì lý do driver/upsert
+    // fallback nếu onAssessmentSaved fail
     stateAfter = await getState();
   }
 
-  const aiModelSnapshot = buildAiModelSnapshot(stateAfter);
+  const aiModelSnapshot = buildAiModelSnapshot(stateAfter, result);
 
   // 4) update lại doc vừa insert để lưu snapshot model (không bắt buộc nhưng đúng BE-203)
   try {
@@ -87,6 +105,7 @@ async function saveAssessment({ input, result, loanTerms, meta }) {
           "analytics.adjustmentMax": aiModelSnapshot.adjustmentRange.max,
           "analytics.trainedAt": aiModelSnapshot.trainedAt,
           "analytics.trainedOnAtTraining": aiModelSnapshot.trainedOnAtTraining,
+          // giữ field aiModel snapshot cho dashboard/debug
           aiModel: aiModelSnapshot,
         },
       }
