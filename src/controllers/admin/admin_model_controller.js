@@ -1,7 +1,7 @@
-const aiLearning = require("../services/ai_learning_service");
-const { trainModel } = require("../services/model_training_service");
-const historyRepo = require("../repositories/ai_model_history_repo");
-const { adminExportKey } = require("../config/env");
+const aiLearning = require("../../services/ai/ai_learning_service");
+const { trainModel } = require("../../services/admin/model_training_service");
+const historyRepo = require("../../repositories/ai_model/ai_model_history_repo");
+const { adminExportKey } = require("../../config/env");
 
 function readAdminKey(req) {
   return req.header("x-admin-key") || req.query.key;

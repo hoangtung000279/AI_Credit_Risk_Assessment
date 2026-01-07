@@ -1,6 +1,6 @@
-const assessmentRepo = require("../repositories/assessment_repo");
-const aiModelRepo = require("../repositories/ai_model_repo");
-const historyRepo = require("../repositories/ai_model_history_repo");
+const assessmentRepo = require("../../repositories/assessment/assessment_repo");
+const aiModelRepo = require("../../repositories/ai_model/ai_model_repo");
+const historyRepo = require("../../repositories/ai_model/ai_model_history_repo");
 
 function round1(v) {
   return Math.round(Number(v) * 10) / 10;

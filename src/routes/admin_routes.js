@@ -1,10 +1,10 @@
 const express = require("express");
 const asyncHandler = require("../middleware/asyncHandler");
-const adminController = require("../controllers/admin_controller");
-const adminAnalyticsController = require("../controllers/admin_analytics_controller");
-const adminDashboardController = require("../controllers/admin_dashboard_controller");
-const adminModelController = require("../controllers/admin_model_controller");
-const adminBackupController = require("../controllers/admin_backup_controller");
+const adminController = require("../controllers/admin/admin_controller");
+const adminAnalyticsController = require("../controllers/admin/admin_analytics_controller");
+const adminDashboardController = require("../controllers/admin/admin_dashboard_controller");
+const adminModelController = require("../controllers/admin/admin_model_controller");
+const adminBackupController = require("../controllers/admin/admin_backup_controller");
 const adminInvestorReportController = require("../controllers/report/admin_investor_report_controller");
 
 const router = express.Router();

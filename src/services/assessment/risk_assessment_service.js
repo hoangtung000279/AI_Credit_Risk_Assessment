@@ -1,6 +1,6 @@
 const { calculateBaseScore } = require("./scoring_service");
-const geminiService = require("./gemini_service");
-const aiLearning = require("./ai_learning_service");
+const geminiService = require("../ai/gemini_service");
+const aiLearning = require("../ai/ai_learning_service");
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
 

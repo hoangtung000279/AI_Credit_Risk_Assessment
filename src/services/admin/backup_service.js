@@ -1,16 +1,16 @@
 const zlib = require("zlib");
-const { getDb } = require("../config/mongo_client");
+const { getDb } = require("../../config/db/mongo_client");
 const {
   gdriveFolderId,
   backupAnonymize,
   backupRetentionDays,
-} = require("../config/env");
+} = require("../../config/env");
 
 const {
   uploadBufferToDrive,
   listFilesInFolder,
   deleteDriveFile,
-} = require("./gdrive_rest_client");
+} = require("../integrations/gdrive_rest_client");
 
 function toPlain(v) {
   if (v == null) return v;

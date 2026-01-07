@@ -1,5 +1,5 @@
-const { runDriveBackup } = require("../services/backup_service");
-const { adminExportKey } = require("../config/env");
+const { runDriveBackup } = require("../../services/admin/backup_service");
+const { adminExportKey } = require("../../config/env");
 
 async function run(req, res) {
   const startedAt = Date.now();

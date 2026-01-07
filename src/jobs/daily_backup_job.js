@@ -1,5 +1,5 @@
 const { backupHour, backupMinute } = require("../config/env");
-const { runDriveBackup } = require("../services/backup_service");
+const { runDriveBackup } = require("../services/admin/backup_service");
 
 let timer = null;
 let isRunning = false;

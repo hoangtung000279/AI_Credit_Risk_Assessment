@@ -1,4 +1,4 @@
-const { getDb } = require("../config/mongo_client");
+const { getDb } = require("../../config/db/mongo_client");
 
 const COLLECTION = "ai_model_history";
 const col = () => getDb().collection(COLLECTION);

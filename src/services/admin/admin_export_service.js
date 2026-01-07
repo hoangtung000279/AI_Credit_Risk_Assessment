@@ -1,4 +1,4 @@
-const assessmentRepo = require("./assessment_repo");
+const assessmentRepo = require("../assessment/assessment_repo");
 
 function csvEscape(value) {
   if (value === null || value === undefined) return "";

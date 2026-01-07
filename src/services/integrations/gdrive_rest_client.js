@@ -5,7 +5,7 @@ const {
   gdriveClientId,
   gdriveClientSecret,
   gdriveRefreshToken,
-} = require("../config/env");
+} = require("../../config/env");
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const DRIVE_API_HOST = "www.googleapis.com";

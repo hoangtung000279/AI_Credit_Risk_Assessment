@@ -1,5 +1,5 @@
 const PDFDocument = require("pdfkit");
-const assessmentRepo = require("../../repositories/assessment_repo");
+const assessmentRepo = require("../../repositories/assessment/assessment_repo");
 
 // =========================
 // Helpers

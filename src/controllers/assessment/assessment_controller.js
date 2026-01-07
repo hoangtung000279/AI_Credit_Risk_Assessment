@@ -1,9 +1,15 @@
-const { assessRisk } = require("../services/risk_assessment_service");
-const { buildLoanTerms } = require("../services/loan_terms_service");
-const { calculateBaseScore } = require("../services/scoring_service");
+const {
+  assessRisk,
+} = require("../../services/assessment/risk_assessment_service");
+const {
+  buildLoanTerms,
+} = require("../../services/assessment/loan_terms_service");
+const {
+  calculateBaseScore,
+} = require("../../services/assessment/scoring_service");
 const {
   saveAssessment,
-} = require("../services/assessment_persistence_service");
+} = require("../../services/assessment_persistence_service");
 
 function normalizeInput(body) {
   return {

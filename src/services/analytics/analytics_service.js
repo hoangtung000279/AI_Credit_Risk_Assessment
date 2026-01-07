@@ -1,4 +1,4 @@
-const { getDb } = require("../config/mongo_client");
+const { getDb } = require("../../config/db/mongo_client");
 
 const col = () => getDb().collection("assessments");
 

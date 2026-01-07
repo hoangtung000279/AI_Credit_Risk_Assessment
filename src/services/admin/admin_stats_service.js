@@ -1,5 +1,5 @@
-const { aggregateStats } = require("../services/assessment_repo"); // hoặc repositories đúng của bạn
-const { TtlCache } = require("../utils/ttl_cache");
+const { aggregateStats } = require("../assessment/assessment_repo"); // hoặc repositories đúng của bạn
+const { TtlCache } = require("../../utils/ttl_cache");
 
 const cache = new TtlCache();
 const TTL_MS = 60 * 1000; // 60s

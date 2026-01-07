@@ -1,5 +1,5 @@
-const { TtlCache } = require("../utils/ttl_cache");
-const aiModelRepo = require("../repositories/ai_model_repo");
+const { TtlCache } = require("../../utils/ttl_cache");
+const aiModelRepo = require("../../repositories/ai_model/ai_model_repo");
 
 const cache = new TtlCache();
 const CACHE_KEY = "ai_model_state";

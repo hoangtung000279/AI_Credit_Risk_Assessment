@@ -1,4 +1,6 @@
-const { getAnalyticsSummary } = require("../services/analytics_service");
+const {
+  getAnalyticsSummary,
+} = require("../../services/analytics/analytics_service");
 
 function parseDateOrNull(v) {
   if (!v) return null;

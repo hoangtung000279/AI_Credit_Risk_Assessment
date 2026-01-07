@@ -1,7 +1,7 @@
 const repoPath = require.resolve("../repositories/assessment_repo");
 const repo = require(repoPath);
 
-const { TtlCache } = require("../utils/ttl_cache");
+const { TtlCache } = require("../../utils/ttl_cache");
 
 const cache = new TtlCache();
 const TTL_MS = 60 * 60 * 1000;

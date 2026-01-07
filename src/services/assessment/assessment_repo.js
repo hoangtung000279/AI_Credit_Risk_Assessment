@@ -1,4 +1,4 @@
-const { getDb } = require("../config/mongo_client");
+const { getDb } = require("../../config/db/mongo_client");
 
 const COLLECTION = "assessments";
 const col = () => getDb().collection(COLLECTION); // ✅ dùng chung 1 helper
@@ -154,4 +154,4 @@ function cursorForExport() {
     .sort({ createdAt: -1 });
 }
 
-module.exports = require("../repositories/assessment_repo");
+module.exports = require("../../repositories/assessment/assessment_repo");

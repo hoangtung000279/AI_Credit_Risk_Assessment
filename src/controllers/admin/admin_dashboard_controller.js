@@ -1,4 +1,6 @@
-const { getAdminDashboard } = require("../services/admin_dashboard_service");
+const {
+  getAdminDashboard,
+} = require("../../services/admin/admin_dashboard_service");
 
 function parseDateOrNull(v) {
   if (!v) return null;
