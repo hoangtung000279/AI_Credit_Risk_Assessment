@@ -50,9 +50,11 @@ function createApp() {
 
   // Routes
   // app.use("/", healthRoutes);
-  app.get("/api/v1/health", (_req, res) => {
-    res.status(200).json({ ok: true });
+  // Healthcheck for Railway (keep it unversioned)
+  app.get("/healthz", (_req, res) => {
+    return res.status(200).json({ ok: true });
   });
+
   // app.use("/", docsRoutes);
   app.use("/api/v1", aiRoutes);
   app.use("/api/v1", assessmentRoutes);
