@@ -1,10 +1,10 @@
 const {
   insertAssessment,
-} = require("../repositories/assessment/assessment_repo");
-const { buildAnalytics } = require("./analytics_builder");
-const { getState } = require("../repositories/ai_model/ai_model_repo");
-const aiLearning = require("./ai/ai_learning_service");
-const { getDb } = require("../config/db/mongo_client");
+} = require("../../repositories/assessment/assessment_repo");
+const { buildAnalytics } = require("../analytics/analytics_builder");
+const { getState } = require("../../repositories/ai_model/ai_model_repo");
+const aiLearning = require("../ai/ai_learning_service");
+const { getDb } = require("../../config/db/mongo_client");
 
 function toDateOrNow(v) {
   if (v instanceof Date) return v;

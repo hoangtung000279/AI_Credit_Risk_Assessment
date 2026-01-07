@@ -1,4 +1,6 @@
-const repoPath = require.resolve("../repositories/assessment_repo");
+const repoPath = require.resolve(
+  "../../repositories/assessment/assessment_repo.js"
+);
 const repo = require(repoPath);
 
 const { TtlCache } = require("../../utils/ttl_cache");

@@ -9,7 +9,7 @@ const {
 } = require("../../services/assessment/scoring_service");
 const {
   saveAssessment,
-} = require("../../services/assessment_persistence_service");
+} = require("../../services/assessment/assessment_persistence_service");
 
 function normalizeInput(body) {
   return {
