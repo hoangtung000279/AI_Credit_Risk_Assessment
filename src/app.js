@@ -3,10 +3,10 @@ const cors = require("cors");
 const helmet = require("helmet");
 const crypto = require("crypto");
 
-const healthRoutes = require("./routes/health_routes");
+// const healthRoutes = require("./routes/health_routes");
 const aiRoutes = require("./routes/ai_routes");
 const assessmentRoutes = require("./routes/assessment_routes");
-const docsRoutes = require("./routes/docs_routes");
+// const docsRoutes = require("./routes/docs_routes");
 const adminRoutes = require("./routes/admin_routes");
 
 const errorMiddleware = require("./middleware/error_middleware");
@@ -49,8 +49,11 @@ function createApp() {
   app.use(requestLogger);
 
   // Routes
-  app.use("/", healthRoutes);
-  app.use("/", docsRoutes);
+  // app.use("/", healthRoutes);
+  app.get("/api/v1/health", (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
+  // app.use("/", docsRoutes);
   app.use("/api/v1", aiRoutes);
   app.use("/api/v1", assessmentRoutes);
   app.use("/api/v1", adminRoutes);
@@ -70,7 +73,6 @@ function createApp() {
 
   // Error middleware MUST be last
   app.use(errorMiddleware);
-
   return app;
 }
 
