@@ -51,9 +51,9 @@ function createApp() {
   // Routes
   app.use("/", healthRoutes);
   app.use("/", docsRoutes);
-  app.use("/api/ai", aiRoutes);
-  app.use("/api", assessmentRoutes);
-  app.use("/api/admin", adminRoutes);
+  app.use("/api/v1", aiRoutes);
+  app.use("/api/v1", assessmentRoutes);
+  app.use("/api/v1", adminRoutes);
 
   // 404 handler
   app.use((req, res) => {
