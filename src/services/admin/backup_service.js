@@ -1,3 +1,4 @@
+// src/services/admin/backup_service.js
 const zlib = require("zlib");
 const { getDb } = require("../../config/db/mongo_client");
 const {
@@ -11,6 +12,14 @@ const {
   listFilesInFolder,
   deleteDriveFile,
 } = require("../integrations/gdrive_rest_client");
+
+// =========================
+// Helpers
+// =========================
+function asNum(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
 
 function toPlain(v) {
   if (v == null) return v;
@@ -28,6 +37,7 @@ function toPlain(v) {
 }
 
 function sanitizeFarmerData(input) {
+  // ✅ no PII: chỉ allow fields phục vụ analytics/model
   const allow = [
     "repaymentHistory",
     "monthlyIncome",
@@ -41,12 +51,38 @@ function sanitizeFarmerData(input) {
   ];
   const out = {};
   for (const k of allow) {
-    if (input && Object.prototype.hasOwnProperty.call(input, k))
+    if (input && Object.prototype.hasOwnProperty.call(input, k)) {
       out[k] = input[k];
+    }
   }
   return out;
 }
 
+function ymd(d = new Date()) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function parseBackupDateFromName(name) {
+  const m = String(name || "").match(
+    /assessments-backup-(\d{4}-\d{2}-\d{2})\.json\.gz$/i
+  );
+  return m ? m[1] : null; // YYYY-MM-DD
+}
+
+function ensureDriveFolder() {
+  if (!gdriveFolderId) {
+    const e = new Error("Missing GDRIVE_FOLDER_ID");
+    e.statusCode = 500;
+    throw e;
+  }
+}
+
+// =========================
+// Build payload (MongoDB -> JSON)
+// =========================
 async function buildBackupPayload() {
   const col = getDb().collection("assessments");
 
@@ -88,16 +124,14 @@ async function buildBackupPayload() {
   };
 }
 
-function ymd(d = new Date()) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
+// =========================
+// Drive operations
+// =========================
 async function pruneOldBackups() {
+  ensureDriveFolder();
+
   // Default giữ 30 ngày nếu env chưa có
-  const retention = Number(backupRetentionDays || 30);
+  const retention = asNum(backupRetentionDays, 30);
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - retention);
 
@@ -106,24 +140,79 @@ async function pruneOldBackups() {
     nameContains: "assessments-backup-",
   });
 
-  for (const f of files) {
-    const name = f.name || "";
-    const m = name.match(/assessments-backup-(\d{4}-\d{2}-\d{2})\.json\.gz$/);
-    if (!m) continue;
+  for (const f of Array.isArray(files) ? files : []) {
+    const name = f?.name || "";
+    const dateStr = parseBackupDateFromName(name);
+    if (!dateStr) continue;
 
-    const fileDate = new Date(`${m[1]}T00:00:00Z`);
-    if (fileDate < cutoff && f.id) {
+    const fileDate = new Date(`${dateStr}T00:00:00Z`);
+    if (Number.isNaN(fileDate.getTime())) continue;
+
+    if (fileDate < cutoff && f?.id) {
       await deleteDriveFile({ fileId: f.id });
     }
   }
 }
 
-async function runDriveBackup() {
-  if (!gdriveFolderId) {
-    const e = new Error("Missing GDRIVE_FOLDER_ID");
-    e.statusCode = 500;
-    throw e;
+async function listBackups({ limit = 20 } = {}) {
+  ensureDriveFolder();
+
+  const files = await listFilesInFolder({
+    folderId: gdriveFolderId,
+    nameContains: "assessments-backup-",
+  });
+
+  const items = (Array.isArray(files) ? files : [])
+    .map((f) => {
+      const name = f?.name || "";
+      const date = parseBackupDateFromName(name);
+
+      return {
+        id: f?.id || null,
+        name,
+        backupDate: date, // YYYY-MM-DD (from filename)
+        createdTime: f?.createdTime || null,
+        size: f?.size != null ? asNum(f.size, null) : null,
+        mimeType: f?.mimeType || null,
+        // nếu gdrive_rest_client trả webViewLink/webContentLink thì giữ lại
+        webViewLink: f?.webViewLink || null,
+        webContentLink: f?.webContentLink || null,
+      };
+    })
+    .filter((x) => x.id && x.backupDate) // chỉ giữ file đúng pattern
+    // sort mới nhất -> cũ nhất
+    .sort((a, b) => String(b.backupDate).localeCompare(String(a.backupDate)))
+    .slice(0, Math.max(1, asNum(limit, 20)));
+
+  return {
+    folderId: gdriveFolderId,
+    retentionDays: asNum(backupRetentionDays, 30),
+    anonymized: Boolean(backupAnonymize),
+    items,
+  };
+}
+
+async function getBackupStatus() {
+  ensureDriveFolder();
+
+  let latest = null;
+  try {
+    const { items } = await listBackups({ limit: 1 });
+    latest = items?.[0] ?? null;
+  } catch {
+    // ignore -> status vẫn trả được config
   }
+
+  return {
+    folderId: gdriveFolderId,
+    retentionDays: asNum(backupRetentionDays, 30),
+    anonymized: Boolean(backupAnonymize),
+    latestBackup: latest,
+  };
+}
+
+async function runDriveBackup() {
+  ensureDriveFolder();
 
   const payload = await buildBackupPayload();
   const jsonBuf = Buffer.from(JSON.stringify(payload), "utf8");
@@ -145,13 +234,16 @@ async function runDriveBackup() {
   await pruneOldBackups();
 
   return {
-    fileId: uploaded.id,
-    fileName: uploaded.name,
-    size: uploaded.size ? Number(uploaded.size) : gzBuf.length,
-    createdTime: uploaded.createdTime,
+    fileId: uploaded?.id || null,
+    fileName: uploaded?.name || fileName,
+    size:
+      uploaded?.size != null
+        ? asNum(uploaded.size, gzBuf.length)
+        : gzBuf.length,
+    createdTime: uploaded?.createdTime || null,
     total: payload.total,
     anonymized: payload.anonymized,
   };
 }
 
-module.exports = { runDriveBackup };
+module.exports = { runDriveBackup, listBackups, getBackupStatus };
