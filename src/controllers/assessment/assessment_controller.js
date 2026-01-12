@@ -25,7 +25,7 @@ function normalizeInput(body) {
     monthlyIncome: Number(body.monthlyIncome),
     monthlyDebtPayment: Number(body.monthlyDebtPayment),
     businessYears: Number(body.businessYears),
-    seasonalIncome: Number(body.seasonalIncome) > 0,
+    seasonalIncome: Number(body.seasonalIncome),
     repaymentHistory: String(body.repaymentHistory || "").toLowerCase(),
     hasCollateral: Number(body.farmSize) > 0,
     isFpoMember: Boolean(body.isFpoMember),
@@ -111,8 +111,6 @@ async function assess(req, res) {
 
   const input = normalizeInput(req.body || {});
   validateInput(input);
-
-  // Hard timeout toàn request để giữ <10s (AI sẽ fallback nếu bị rate-limit)
   const hardTimeoutMs = 9500;
 
   let riskResult;
