@@ -50,6 +50,12 @@ async function saveAssessment({ input, result, loanTerms, meta }) {
 
   // 2) insert assessment trước (đảm bảo “save every assessment”)
   const doc = {
+    clientId: input.clientId ?? null,
+    clientCreatedAt:
+      input.clientCreatedAt instanceof Date &&
+      !Number.isNaN(input.clientCreatedAt.getTime())
+        ? input.clientCreatedAt
+        : null,
     farmerData: input,
     scores: {
       baseScore: result.baseScore,
@@ -73,7 +79,7 @@ async function saveAssessment({ input, result, loanTerms, meta }) {
       timeoutFallback: Boolean(result?.meta?.timeoutFallback),
     },
     analytics,
-    version: 3,
+    version: 1,
   };
 
   const insertedId = await insertAssessment(doc);

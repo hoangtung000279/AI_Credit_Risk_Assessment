@@ -62,34 +62,43 @@ async function getAccessToken() {
     return cachedToken.accessToken;
   }
 
-  if (!gdriveClientId || !gdriveClientSecret || !gdriveRefreshToken) {
-    const e = new Error(
-      "Missing Drive OAuth env: GDRIVE_CLIENT_ID / GDRIVE_CLIENT_SECRET / GDRIVE_REFRESH_TOKEN"
-    );
-    e.statusCode = 500;
-    throw e;
+  try {
+    const tokenRes = await httpPostFormUrlEncoded(TOKEN_URL, {
+      client_id: gdriveClientId,
+      client_secret: gdriveClientSecret,
+      refresh_token: gdriveRefreshToken,
+      grant_type: "refresh_token",
+    });
+
+    const accessToken = tokenRes.access_token;
+    const expiresIn = Number(tokenRes.expires_in || 3600);
+
+    if (!accessToken) {
+      throw new Error(`Missing access_token: ${JSON.stringify(tokenRes)}`);
+    }
+
+    cachedToken = {
+      accessToken,
+      expMs: Date.now() + expiresIn * 1000,
+    };
+
+    return accessToken;
+  } catch (err) {
+    // ⭐ CRITICAL PART
+    if (
+      err.message?.includes("invalid_grant") ||
+      err.message?.includes("expired or revoked")
+    ) {
+      const e = new Error(
+        "Google Drive refresh_token is invalid or revoked. Re-authentication required."
+      );
+      e.code = "GDRIVE_REFRESH_TOKEN_INVALID";
+      e.statusCode = 500;
+      throw e;
+    }
+
+    throw err;
   }
-
-  const tokenRes = await httpPostFormUrlEncoded(TOKEN_URL, {
-    client_id: gdriveClientId,
-    client_secret: gdriveClientSecret,
-    refresh_token: gdriveRefreshToken,
-    grant_type: "refresh_token",
-  });
-
-  const accessToken = tokenRes.access_token;
-  const expiresIn = Number(tokenRes.expires_in || 3600);
-
-  if (!accessToken) {
-    const e = new Error(
-      `Token response missing access_token: ${JSON.stringify(tokenRes)}`
-    );
-    e.statusCode = 500;
-    throw e;
-  }
-
-  cachedToken = { accessToken, expMs: Date.now() + expiresIn * 1000 };
-  return accessToken;
 }
 
 async function driveRequest({ method, path, headers = {}, body }) {

@@ -13,13 +13,15 @@ const {
 
 function normalizeInput(body) {
   return {
+    clientId: body.id ? String(body.id).trim() : null,
+    clientCreatedAt: body.createdAt ? new Date(body.createdAt) : null,
     fullName: body.fullName?.trim() || null,
     phone: body.phone?.trim() || null,
     location: body.location || body.province || null,
     province: body.province || null,
     district: body.district || null,
     farmSize: Number(body.farmSize) || null,
-    crops: body.crops ? [String(body.crops)] : [],
+    crops: body.crops ? String(body.crops).trim() : null,
     monthlyIncome: Number(body.monthlyIncome),
     monthlyDebtPayment: Number(body.monthlyDebtPayment),
     businessYears: Number(body.businessYears),
@@ -39,7 +41,7 @@ function validateInput(input) {
     "monthlyIncome",
     "monthlyDebtPayment",
     "businessYears",
-    "hasCollateral",
+    // "hasCollateral",
   ];
   for (const key of required) {
     if (
@@ -179,19 +181,74 @@ async function assess(req, res) {
 
   res.status(200).json({
     ok: true,
+    id: input.clientId,
+    createdAt: input.clientCreatedAt ?? new Date().toISOString(),
     assessmentId,
-    ...riskResult,
+    summary: {
+      fullName: input.fullName,
+      phone: input.phone,
+      location: input.location,
+      province: input.province,
+      district: input.district,
+      farmSize: input.farmSize,
+      crops: input.crops,
+      monthlyIncome: input.monthlyIncome,
+      monthlyDebtPayment: input.monthlyDebtPayment,
+      businessYears: input.businessYears,
+      seasonalIncome: input.seasonalIncome,
+      isFpoMember: input.isFpoMember,
+      fpoName: input.fpoName,
+      fpoRole: input.fpoRole,
+      fpoTrackRecord: input.fpoTrackRecord,
+    },
+
+    score: {
+      baseScore: riskResult.baseScore,
+      finalScore: riskResult.finalScore,
+      riskCategory: riskResult.riskCategory,
+      fpoBoost: riskResult.fpoBoost,
+      aiAdjustment: riskResult.aiAdjustment,
+    },
+
+    breakdown: riskResult.baseBreakdown,
+
     loanTerms,
+
+    decisionReasons: buildDecisionReasons(riskResult, input),
+
     explainable: {
-      base: "Base score computed from 5 transparent factors.",
-      finalFormula: "final = base + aiAdjustment + fpoBoost (capped 0..100)",
-      loanTerms: "Terms derived from finalScore + payment capacity cap.",
+      base: "Base score computed from transparent financial & farming factors.",
+      finalFormula: "final = base + aiAdjustment + fpoBoost (0..100)",
     },
     meta: {
-      ...(riskResult?.meta || {}),
       latencyMs,
     },
   });
+}
+
+function buildDecisionReasons(result, input) {
+  const reasons = [];
+
+  if (result.baseBreakdown.debtToIncome >= 26) {
+    reasons.push("LOW_DEBT_TO_INCOME");
+  }
+
+  if (["excellent", "good"].includes(input.repaymentHistory)) {
+    reasons.push("GOOD_REPAYMENT_HISTORY");
+  }
+
+  if (
+    input.isFpoMember &&
+    String(input.fpoTrackRecord).toLowerCase() === "good"
+  ) {
+    reasons.push("GOOD_FPO_TRACK_RECORD");
+  }
+
+  if (result.finalScore >= 75) {
+    reasons.push("LOW_RISK_SCORE");
+  }
+
+  return reasons;
 }
 
 module.exports = { assess };
