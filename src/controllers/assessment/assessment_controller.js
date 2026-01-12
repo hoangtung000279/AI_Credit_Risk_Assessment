@@ -13,17 +13,23 @@ const {
 
 function normalizeInput(body) {
   return {
-    ...body,
+    fullName: body.fullName?.trim() || null,
+    phone: body.phone?.trim() || null,
+    location: body.location || body.province || null,
+    province: body.province || null,
+    district: body.district || null,
+    farmSize: Number(body.farmSize) || null,
+    crops: body.crops ? [String(body.crops)] : [],
     monthlyIncome: Number(body.monthlyIncome),
     monthlyDebtPayment: Number(body.monthlyDebtPayment),
     businessYears: Number(body.businessYears),
-    hasCollateral: Boolean(body.hasCollateral),
+    seasonalIncome: Number(body.seasonalIncome) > 0,
+    repaymentHistory: String(body.repaymentHistory || "").toLowerCase(),
+    hasCollateral: Number(body.farmSize) > 0,
     isFpoMember: Boolean(body.isFpoMember),
-    crops: Array.isArray(body.crops)
-      ? body.crops.map(String)
-      : body.crops
-      ? [String(body.crops)]
-      : [],
+    fpoName: body.fpoName || null,
+    fpoRole: body.fpoRole || null,
+    fpoTrackRecord: body.fpoTrackRecord || null,
   };
 }
 
