@@ -17,10 +17,23 @@ function buildDecisionReasons(result, input) {
   return reasons;
 }
 
+function pickLoanTermsComparable(terms) {
+  if (!terms) return null;
+
+  return {
+    recommendedAmount: terms.recommendedAmount ?? null,
+    interestRateAnnual: terms.interestRateAnnual ?? null,
+    tenureMonths: terms.tenureMonths ?? null,
+    estimatedMonthlyPayment: terms.estimatedMonthlyPayment ?? null,
+    paymentCap: terms.paymentCap ?? null,
+  };
+}
+
 function buildAssessmentResponse({
   input,
   riskResult,
   loanTerms,
+  loanTermsWithout, // ✅ add
   assessmentId,
   latencyMs,
 }) {
@@ -57,7 +70,10 @@ function buildAssessmentResponse({
     },
 
     breakdown: riskResult.baseBreakdown,
-    loanTerms,
+
+    // ✅ show both terms for comparison
+    loanTerms: pickLoanTermsComparable(loanTerms),
+    loanTermsWithout: pickLoanTermsComparable(loanTermsWithout),
 
     decisionReasons: buildDecisionReasons(riskResult, input),
 

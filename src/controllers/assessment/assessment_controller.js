@@ -93,6 +93,31 @@ async function assess(req, res) {
 
   const loanTerms = buildLoanTerms(input, riskResult);
   const latencyMs = Date.now() - startedAt;
+  const riskResultWithoutFpo = {
+    ...riskResult,
+    fpoBoost: 0,
+    rawFinalScore:
+      (riskResult.rawFinalScore ?? riskResult.finalScore) -
+      (riskResult.fpoBoost ?? 0),
+    finalScore: clamp(
+      (riskResult.finalScore ?? 0) - (riskResult.fpoBoost ?? 0),
+      0,
+      100
+    ),
+  };
+
+  riskResultWithoutFpo.riskCategory =
+    riskResultWithoutFpo.finalScore >= 75
+      ? "Low Risk"
+      : riskResultWithoutFpo.finalScore >= 50
+      ? "Medium Risk"
+      : "High Risk";
+
+  // nếu buildLoanTerms có dùng input.isFpoMember thì nên set false để chắc chắn
+  const loanTermsWithout = buildLoanTerms(
+    { ...input, isFpoMember: false },
+    riskResultWithoutFpo
+  );
 
   let assessmentId = null;
   try {
@@ -111,6 +136,7 @@ async function assess(req, res) {
       input,
       riskResult,
       loanTerms,
+      loanTermsWithout,
       assessmentId,
       latencyMs,
     })
