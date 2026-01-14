@@ -125,6 +125,7 @@ async function assess(req, res) {
       input,
       result: riskResult,
       loanTerms,
+      loanTermsWithout,
       meta: { latencyMs },
     });
   } catch (e) {

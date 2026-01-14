@@ -18,21 +18,78 @@ function toIso(date) {
 }
 
 function pickExportRow(doc) {
-  // Hỗ trợ nhiều schema: bạn đang lưu dạng farmerData / scores
-  const farmer = doc.farmerData || doc.input || {};
+  const input = doc.input || doc.farmerData || {};
   const scores = doc.scores || doc.result || {};
 
+  const loanTerms =
+    doc.loanTerms || scores.loanTerms || doc.result?.loanTerms || null;
+  const loanTermsWithout =
+    doc.loanTermsWithout ||
+    scores.loanTermsWithout ||
+    doc.result?.loanTermsWithout ||
+    null;
+
+  const baseBreakdown =
+    scores.baseBreakdown ||
+    scores.breakdown ||
+    doc.result?.baseBreakdown ||
+    doc.result?.breakdown ||
+    null;
+
   return {
+    id: input.clientId ?? doc.clientId ?? null,
     assessmentId: doc._id?.toString?.() || "",
     createdAt: toIso(doc.createdAt),
-    location: doc.location || farmer.location || "",
-    isFpoMember: Boolean(farmer.isFpoMember),
-    fpoTrackRecord: farmer.fpoTrackRecord || "",
-    baseScore: scores.baseScore ?? "",
-    aiAdjustment: scores.aiAdjustment ?? "",
-    fpoBoost: scores.fpoBoost ?? "",
-    finalScore: scores.finalScore ?? "",
-    riskCategory: scores.riskCategory || "",
+
+    summary: {
+      fullName: input.fullName ?? null,
+      phone: input.phone ?? null,
+      location: input.location ?? doc.location ?? null,
+      province: input.province ?? null,
+      district: input.district ?? null,
+      farmSize: input.farmSize ?? null,
+      crops: input.crops ?? null,
+      monthlyIncome: input.monthlyIncome ?? null,
+      monthlyDebtPayment: input.monthlyDebtPayment ?? null,
+      businessYears: input.businessYears ?? null,
+      seasonalIncome: input.seasonalIncome ?? null,
+      isFpoMember: Boolean(input.isFpoMember),
+      fpoName: input.fpoName ?? null,
+      fpoRole: input.fpoRole ?? null,
+      fpoTrackRecord: input.fpoTrackRecord ?? null,
+    },
+
+    score: {
+      baseScore: scores.baseScore ?? null,
+      finalScore: scores.finalScore ?? doc.finalScore ?? null,
+      riskCategory: scores.riskCategory ?? doc.riskCategory ?? null,
+      fpoBoost:
+        scores.fpoBoost ?? scores.fpoBoost === 0 ? scores.fpoBoost : null,
+      aiAdjustment: scores.aiAdjustment ?? 0,
+    },
+
+    breakdown: baseBreakdown,
+
+    loanTerms: loanTerms
+      ? {
+          recommendedAmount: loanTerms.recommendedAmount ?? null,
+          interestRateAnnual: loanTerms.interestRateAnnual ?? null,
+          tenureMonths: loanTerms.tenureMonths ?? null,
+          estimatedMonthlyPayment: loanTerms.estimatedMonthlyPayment ?? null,
+          paymentCap: loanTerms.paymentCap ?? null,
+        }
+      : null,
+
+    loanTermsWithout: loanTermsWithout
+      ? {
+          recommendedAmount: loanTermsWithout.recommendedAmount ?? null,
+          interestRateAnnual: loanTermsWithout.interestRateAnnual ?? null,
+          tenureMonths: loanTermsWithout.tenureMonths ?? null,
+          estimatedMonthlyPayment:
+            loanTermsWithout.estimatedMonthlyPayment ?? null,
+          paymentCap: loanTermsWithout.paymentCap ?? null,
+        }
+      : null,
   };
 }
 

@@ -34,7 +34,13 @@ function buildAiModelSnapshot(state, result) {
   };
 }
 
-async function saveAssessment({ input, result, loanTerms, meta }) {
+async function saveAssessment({
+  input,
+  result,
+  loanTerms,
+  loanTermsWithout,
+  meta,
+}) {
   // 1) analytics base (BE-201)
   const analytics = { ...buildAnalytics({ input, result, meta }) };
 
@@ -71,6 +77,7 @@ async function saveAssessment({ input, result, loanTerms, meta }) {
       aiSignalsistr: result.aiSignals,
     },
     loanTerms,
+    loanTermsWithout,
     location: analytics.location,
     createdAt: analytics.createdAt,
     meta: {

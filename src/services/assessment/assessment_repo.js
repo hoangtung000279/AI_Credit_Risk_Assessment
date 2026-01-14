@@ -131,27 +131,36 @@ async function aggregateStats({ match = {} } = {}) {
   };
 }
 
-function cursorForExport() {
-  // ✅ dùng dot-notation projection ổn định hơn
+function cursorForExport({ from, to } = {}) {
+  const filter = {};
+  if (from || to) {
+    filter.createdAt = {};
+    if (from) filter.createdAt.$gte = from;
+    if (to) filter.createdAt.$lte = to;
+  }
+
   return col()
-    .find(
-      {},
-      {
-        projection: {
-          createdAt: 1,
-          location: 1,
-          "farmerData.isFpoMember": 1,
-          "farmerData.fpoTrackRecord": 1,
-          "farmerData.location": 1,
-          "scores.baseScore": 1,
-          "scores.aiAdjustment": 1,
-          "scores.fpoBoost": 1,
-          "scores.finalScore": 1,
-          "scores.riskCategory": 1,
-        },
-      }
-    )
+    .find(filter, {
+      projection: {
+        createdAt: 1,
+        location: 1,
+
+        // schema mới/cũ
+        input: 1,
+        farmerData: 1,
+        scores: 1,
+        result: 1,
+
+        // terms
+        loanTerms: 1,
+        loanTermsWithout: 1,
+
+        // nếu bạn lưu flat
+        finalScore: 1,
+        riskCategory: 1,
+      },
+    })
     .sort({ createdAt: -1 });
 }
 
-module.exports = require("../../repositories/assessment/assessment_repo");
+module.exports = { aggregateStats, cursorForExport };
