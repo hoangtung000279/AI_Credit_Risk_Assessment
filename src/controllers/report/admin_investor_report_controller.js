@@ -1,6 +1,6 @@
 const {
   generateInvestorReportPdf,
-} = require("../../services/report/investor_report_service");
+} = require("../../services/report/investor_report/investor_report_service");
 const { adminExportKey } = require("../../config/env");
 
 function readAdminKey(req) {
